@@ -1,0 +1,9 @@
+add_executable(LidarParserTest
+	LidarParserTest.cpp
+	)
+target_link_libraries(
+	LidarParserTest
+	PRIVATE
+		LidarParser
+		gtest_main
+	)
