@@ -93,7 +93,7 @@ int LidarParser_Parse()
 			case ValidateStartByte:
 			{
 				uint8_t byte = s_stream->GetByte();
-				LidarPacket_Populate(&parser.packet, START_BYTE, byte);
+				LidarPacket_Populate(&parser.packet, PACKET_START_BYTE, byte);
 				parser.stage = byte == START_BYTE ? GettingIndexByte : GettingStartByte;
 				break;
 			}

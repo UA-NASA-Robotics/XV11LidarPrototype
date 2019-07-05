@@ -2,6 +2,7 @@
 
 add_library(LidarParser
 	./impl/LidarParser.c
+	./impl/LidarPacket/LidarPacket.c
 )
 target_include_directories(LidarParser
 	PUBLIC

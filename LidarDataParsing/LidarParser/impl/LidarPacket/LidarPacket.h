@@ -1,6 +1,9 @@
 #ifndef LIDAR_PACKET_H
 #define LIDAR_PACKET_H
 
+#include <stdint.h>
+#include <stdbool.h>
+
 //==============================================================================
 // Types
 //==============================================================================
@@ -15,7 +18,7 @@ LidarPacket_t;
 
 typedef enum
 {
-	START_BYTE = 0,
+	PACKET_START_BYTE,
 	INDEX_BYTE,
 	SPEED_LSB_BYTE,
 	SPEED_MSB_BYTE,
