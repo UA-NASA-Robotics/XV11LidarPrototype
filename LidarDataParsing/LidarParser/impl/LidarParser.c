@@ -99,6 +99,11 @@ bool allBytesScanned()
 	return parser.index >= Buffer_size(&parser.buffer);
 }
 
+uint8_t nextByte()
+{
+	return Buffer_get(&parser.buffer, parser.index);
+}
+
 //==============================================================================
 // State Machine Handlers
 //==============================================================================
@@ -110,7 +115,7 @@ void Handler_GettingStartByte()
 
 void Handler_ValidateStartByte()
 {
-	uint8_t byte = Buffer_get(&parser.buffer, parser.index++);
+	uint8_t byte = nextByte();
 	LidarPacket_Populate(&parser.packet, PACKET_START_BYTE, byte);
 	parser.stage = byte == START_BYTE ? GettingIndexByte : GettingStartByte;
 }
@@ -122,7 +127,7 @@ void Handler_GettingIndexByte()
 
 void Handler_ValidateIndexByte()
 {
-	uint8_t byte = Buffer_get(&parser.buffer, parser.index++);
+	uint8_t byte = nextByte();
 	if (byte >= MIN_INDEX && byte <= MAX_INDEX)
 	{
 		LidarPacket_Populate(&parser.packet, INDEX_BYTE, byte);
@@ -140,7 +145,7 @@ void Handler_GettingSpeedLSB()
 
 void Handler_StoringSpeedLSB()
 {
-	uint8_t byte = Buffer_get(&parser.buffer, parser.index++);
+	uint8_t byte = nextByte();
 	LidarPacket_Populate(&parser.packet, SPEED_LSB_BYTE, byte);
 	parser.stage = GettingSpeedMSB;
 }
@@ -152,7 +157,7 @@ void Handler_GettingSpeedMSB()
 
 void Handler_StoringSpeedMSB()
 {
-	uint8_t byte = Buffer_get(&parser.buffer, parser.index++);
+	uint8_t byte = nextByte();
 	LidarPacket_Populate(&parser.packet, SPEED_MSB_BYTE, byte);
 	parser.stage = PrepareToGetDataBytes;
 }
@@ -170,7 +175,7 @@ void Handler_GetDataByte()
 
 void Handler_StoreDataByte()
 {
-	uint8_t byte = Buffer_get(&parser.buffer, parser.index++);
+	uint8_t byte = nextByte();
 	switch (parser.num_data_bytes)
 	{
 		case 0:  LidarPacket_Populate(&parser.packet, DATA_0_BYTE_0, byte); break;
@@ -201,8 +206,7 @@ void Handler_GetChecksumByteLSB()
 
 void Handler_StoreChecksumByteLSB()
 {
-	uint8_t byte = Buffer_get(&parser.buffer, parser.index++);
-	LidarPacket_Populate(&parser.packet, CHECKSUM_LSB_BYTE, byte);
+	LidarPacket_Populate(&parser.packet, CHECKSUM_LSB_BYTE, nextByte());
 	parser.stage = GetChecksumByte_MSB;
 }
 
@@ -213,8 +217,7 @@ void Handler_GetChecksumByteMSB()
 
 void Handler_StoreChecksumByteMSB()
 {
-	uint8_t byte = Buffer_get(&parser.buffer, parser.index++);
-	LidarPacket_Populate(&parser.packet, CHECKSUM_MSB_BYTE, byte);
+	LidarPacket_Populate(&parser.packet, CHECKSUM_MSB_BYTE, nextByte());
 	parser.stage = ValidatingChecksum;
 }
 
