@@ -1,7 +1,7 @@
 #include "LidarParser.h"
 #include "LidarInputStream.h"
 #include "LidarMeasurementBuffer.h"
-#include "LidarPacket/LidarPacket.h"
+#include "LidarPacket/Packet.h"
 #include "Buffer.h"
 
 // interfaces
@@ -11,6 +11,8 @@ static LidarMeasurementBuffer_i * s_buffer;
 // parser's finite states
 typedef enum
 {
+	ResettingParser,
+
 	// start byte
 	GettingStartByte,
 	ValidateStartByte,
@@ -26,7 +28,6 @@ typedef enum
 	StoringSpeedMSB,
 
 	// data bytes
-	PrepareToGetDataBytes,
 	GetDataByte,
 	StoreDataByte,
 
@@ -40,11 +41,8 @@ typedef enum
 	// transfer bytes to measurement buffer
 	AddingMeasurementToBuffer,
 
-	// reset the state of the parser
-	ResettingParser,
-
 	// pause parsing (until next call to parse function)
-	PauseParsing
+	StopParsing
 }
 ParsingStage_t;
 
@@ -63,9 +61,6 @@ static struct
 	// number of data bytes that have been parsed in current packet
 	int num_data_bytes;
 
-	// buffer of bytes in current packet
-	LidarPacket_t packet;
-
 	// flag to indicate whether the FSM loop should continue
 	bool continue_parsing;
 
@@ -81,13 +76,15 @@ void LidarParser_Init (LidarInputStream_i * stream, LidarMeasurementBuffer_i * b
 	s_buffer = buffer;
 	
 	// initialize finite state machine
-	parser.stage = GettingStartByte;
-	parser.num_data_bytes = 0;
+	parser.stage = ResettingParser;
 	parser.continue_parsing = true;
 
 	// initialize buffer of raw bytes
 	Buffer_init(&parser.buffer);
 	parser.index = 0;
+
+	// reset the packet
+	Packet_reset();
 }
 
 //==============================================================================
@@ -101,150 +98,161 @@ bool allBytesScanned()
 
 uint8_t nextByte()
 {
-	return Buffer_get(&parser.buffer, parser.index);
+	return Buffer_get(&parser.buffer, parser.index++);
+}
+
+bool isValidStartByte(uint8_t byte)
+{
+	return byte == START_BYTE;
+}
+
+bool isValidIndexByte(uint8_t byte)
+{
+	return byte >= MIN_INDEX && byte <= MAX_INDEX;
 }
 
 //==============================================================================
 // State Machine Handlers
 //==============================================================================
 
+void Handler_ResettingParser()
+{
+	// empty the packet
+	Packet_reset();
+
+	parser.stage = GettingStartByte;
+	parser.num_data_bytes = 0;
+	parser.index = 0;
+}
+
 void Handler_GettingStartByte()
 {
-	parser.stage = allBytesScanned() ? PauseParsing : ValidateStartByte;
+	parser.stage = allBytesScanned() ? StopParsing : ValidateStartByte;
 }
 
 void Handler_ValidateStartByte()
 {
 	uint8_t byte = nextByte();
-	LidarPacket_Populate(&parser.packet, PACKET_START_BYTE, byte);
-	parser.stage = byte == START_BYTE ? GettingIndexByte : GettingStartByte;
+
+	// handle invalid start byte
+	if (!isValidStartByte(byte))
+	{
+		Buffer_pop(&parser.buffer);
+		parser.stage = ResettingParser;
+		return;
+	}
+
+	Packet_add(byte);
+	parser.stage = GettingIndexByte;
 }
 
 void Handler_GettingIndexByte()
 {
-	parser.stage = allBytesScanned() ? PauseParsing : ValidatingIndexByte;
+	parser.stage = allBytesScanned() ? StopParsing : ValidatingIndexByte;
 }
 
 void Handler_ValidateIndexByte()
 {
 	uint8_t byte = nextByte();
-	if (byte >= MIN_INDEX && byte <= MAX_INDEX)
+
+	// handle invalid index byte
+	if (!isValidIndexByte(byte))
 	{
-		LidarPacket_Populate(&parser.packet, INDEX_BYTE, byte);
-		parser.stage = GettingSpeedLSB;
+		Buffer_pop(&parser.buffer);
+		parser.stage = ResettingParser;
 		return;
 	}
 
-	parser.stage = GettingStartByte;
+	Packet_add(byte);
+	parser.stage = GettingSpeedLSB;
 }
 
 void Handler_GettingSpeedLSB()
 {
-	parser.stage = allBytesScanned() ? PauseParsing : StoringSpeedLSB;
+	parser.stage = allBytesScanned() ? StopParsing : StoringSpeedLSB;
 }
 
 void Handler_StoringSpeedLSB()
 {
-	uint8_t byte = nextByte();
-	LidarPacket_Populate(&parser.packet, SPEED_LSB_BYTE, byte);
+	Packet_add(nextByte());
 	parser.stage = GettingSpeedMSB;
 }
 
 void Handler_GettingSpeedMSB()
 {
-	parser.stage = allBytesScanned() ? PauseParsing : StoringSpeedMSB;
+	parser.stage = allBytesScanned() ? StopParsing : StoringSpeedMSB;
 }
 
 void Handler_StoringSpeedMSB()
 {
-	uint8_t byte = nextByte();
-	LidarPacket_Populate(&parser.packet, SPEED_MSB_BYTE, byte);
-	parser.stage = PrepareToGetDataBytes;
-}
-
-void Handler_PrepareToGetDataBytes()
-{
-	parser.num_data_bytes = 0;
+	Packet_add(nextByte());
 	parser.stage = GetDataByte;
 }
 
 void Handler_GetDataByte()
 {
-	parser.stage = allBytesScanned() ? PauseParsing : StoreDataByte;
+	parser.stage = allBytesScanned() ? StopParsing : StoreDataByte;
 }
 
 void Handler_StoreDataByte()
 {
-	uint8_t byte = nextByte();
-	switch (parser.num_data_bytes)
-	{
-		case 0:  LidarPacket_Populate(&parser.packet, DATA_0_BYTE_0, byte); break;
-		case 1:  LidarPacket_Populate(&parser.packet, DATA_0_BYTE_1, byte); break;
-		case 2:  LidarPacket_Populate(&parser.packet, DATA_0_BYTE_2, byte); break;
-		case 3:  LidarPacket_Populate(&parser.packet, DATA_0_BYTE_3, byte); break;
-		case 4:  LidarPacket_Populate(&parser.packet, DATA_1_BYTE_0, byte); break;
-		case 5:  LidarPacket_Populate(&parser.packet, DATA_1_BYTE_1, byte); break;
-		case 6:  LidarPacket_Populate(&parser.packet, DATA_1_BYTE_2, byte); break;
-		case 7:  LidarPacket_Populate(&parser.packet, DATA_1_BYTE_3, byte); break;
-		case 8:  LidarPacket_Populate(&parser.packet, DATA_2_BYTE_0, byte); break;
-		case 9:  LidarPacket_Populate(&parser.packet, DATA_2_BYTE_1, byte); break;
-		case 10: LidarPacket_Populate(&parser.packet, DATA_2_BYTE_2, byte); break;
-		case 11: LidarPacket_Populate(&parser.packet, DATA_2_BYTE_3, byte); break;
-		case 12: LidarPacket_Populate(&parser.packet, DATA_3_BYTE_0, byte); break;
-		case 13: LidarPacket_Populate(&parser.packet, DATA_3_BYTE_1, byte); break;
-		case 14: LidarPacket_Populate(&parser.packet, DATA_3_BYTE_2, byte); break;
-		case 15: LidarPacket_Populate(&parser.packet, DATA_3_BYTE_3, byte); break;
-	}
+	Packet_add(nextByte());
 	++parser.num_data_bytes;
 	parser.stage = parser.num_data_bytes < NUM_DATA_BYTES_PER_PACKET ? GetDataByte : GetChecksumByte_LSB;
 }
 
 void Handler_GetChecksumByteLSB()
 {
-	parser.stage = allBytesScanned() ? PauseParsing : StoreChecksumByte_LSB;
+	parser.stage = allBytesScanned() ? StopParsing : StoreChecksumByte_LSB;
 }
 
 void Handler_StoreChecksumByteLSB()
 {
-	LidarPacket_Populate(&parser.packet, CHECKSUM_LSB_BYTE, nextByte());
+	Packet_add(nextByte());
 	parser.stage = GetChecksumByte_MSB;
 }
 
 void Handler_GetChecksumByteMSB()
 {
-	parser.stage = allBytesScanned() ? PauseParsing : StoreChecksumByte_MSB;
+	parser.stage = allBytesScanned() ? StopParsing : StoreChecksumByte_MSB;
 }
 
 void Handler_StoreChecksumByteMSB()
 {
-	LidarPacket_Populate(&parser.packet, CHECKSUM_MSB_BYTE, nextByte());
+	Packet_add(nextByte());
 	parser.stage = ValidatingChecksum;
 }
 
+// TODO: Rework this to validate the packet as a whole (not just the checksum)
 void Handler_ValidatingChecksum()
 {
-	bool valid_checksum = true;
-	parser.stage = valid_checksum ? AddingMeasurementToBuffer : GettingStartByte;
+	// handle invalid packet
+	if (!Packet_isValid())
+	{
+		Buffer_pop(&parser.buffer);
+		parser.stage = ResettingParser;
+		return;
+	}
+
+	parser.stage = AddingMeasurementToBuffer;
 }
 
 void Handler_AddingMeasurementToBuffer()
 {
-	for (int i = 0; i < 4; ++i)
-	{
-		// for now, just adding correct number of placeholders
-		s_buffer->AddMeasurement(0, 0);
-	}
+	s_buffer->AddMeasurement(Packet_getIndex1(), Packet_getDistance1());
+	s_buffer->AddMeasurement(Packet_getIndex2(), Packet_getDistance2());
+	s_buffer->AddMeasurement(Packet_getIndex3(), Packet_getDistance3());
+	s_buffer->AddMeasurement(Packet_getIndex4(), Packet_getDistance4());
+
+	// remove bytes from buffer
+	for (int i = 0; i < NUM_TOTAL_BYTES_PER_PACKET; ++i)
+		Buffer_pop(&parser.buffer);
 
 	// start over
 	parser.stage = ResettingParser;
 }
 
-void Handler_ResettingParser()
-{
-	parser.stage = GettingStartByte;
-}
-
-void Handler_PauseParsing()
+void Handler_StopParsing()
 {
 	parser.continue_parsing = false;
 }
@@ -267,6 +275,7 @@ void LidarParser_Parse()
 	{
 		switch (parser.stage)
 		{
+		case ResettingParser: Handler_ResettingParser(); break;
 		case GettingStartByte: Handler_GettingStartByte(); break;
 		case ValidateStartByte: Handler_ValidateStartByte(); break;
 		case GettingIndexByte: Handler_GettingIndexByte(); break;
@@ -275,7 +284,6 @@ void LidarParser_Parse()
 		case StoringSpeedLSB: Handler_StoringSpeedLSB(); break;
 		case GettingSpeedMSB: Handler_GettingSpeedMSB(); break;
 		case StoringSpeedMSB: Handler_StoringSpeedMSB(); break;
-		case PrepareToGetDataBytes: Handler_PrepareToGetDataBytes(); break;
 		case GetDataByte: Handler_GetDataByte(); break;
 		case StoreDataByte: Handler_StoreDataByte(); break;
 		case GetChecksumByte_LSB: Handler_GetChecksumByteLSB(); break;
@@ -284,8 +292,7 @@ void LidarParser_Parse()
 		case StoreChecksumByte_MSB: Handler_StoreChecksumByteMSB(); break;
 		case ValidatingChecksum: Handler_ValidatingChecksum(); break;
 		case AddingMeasurementToBuffer: Handler_AddingMeasurementToBuffer(); break;
-		case ResettingParser: Handler_ResettingParser(); break;
-		case PauseParsing: Handler_PauseParsing(); break;
+		case StopParsing: Handler_StopParsing(); break;
 		}
 	}
 }
