@@ -39,9 +39,6 @@ protected:
 /// If there is no input, no valid messages are parsed.
 TEST_F (LidarParser_NoInput, ParsingEmptyStreamYieldsZeroMessages)
 {
-	// verify parse detects 0 valid measurements
-	EXPECT_EQ(0, LidarParser_Parse());
-
 	// verify size of measurement buffer is 0
 	EXPECT_EQ(0, message_buffer.GetSize());
 }

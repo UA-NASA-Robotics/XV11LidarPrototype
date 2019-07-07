@@ -52,7 +52,7 @@ TEST_F(LidarParser_ValidInput, OneValidPacket)
 		0xFF, 0xFF, 0xFF, 0xFF,	// Data 4
 		0xAA, 0xBB		        // checksum bytes (lsb, msb)
 	});
-	EXPECT_EQ(4, LidarParser_Parse());
+	LidarParser_Parse();
 	EXPECT_EQ(4, message_buffer.GetSize());
 }
 
@@ -81,7 +81,7 @@ TEST_F(LidarParser_ValidInput, TwoValidPackets)
 		0xFF, 0xFF, 0xFF, 0xFF,	// Data 4
 		0xAA, 0xBB,		        // checksum bytes (lsb, msb)
 	});
-	EXPECT_EQ(8, LidarParser_Parse());
+	LidarParser_Parse();
 	EXPECT_EQ(8, message_buffer.GetSize());
 }
 

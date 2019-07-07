@@ -18,11 +18,8 @@ void LidarParser_Init (LidarInputStream_i *, LidarMeasurementBuffer_i *);
 ///
 /// Preconditions:
 ///  - Module has been initialized.
-///
-/// Returns:
-///  - Returns the number of valid messages transferred to the buffer.
 ///=============================================================================
-int LidarParser_Parse ();
+void LidarParser_Parse ();
 
 #ifdef __cplusplus
 }
