@@ -31,3 +31,8 @@ uint16_t MockLidarMeasurementBuffer_GetDistance(int i)
 {
 	return std::get<1>(measurements.at(i));
 }
+
+uint16_t MockLidarMeasurementBuffer_GetIndex(int i)
+{
+	return std::get<0>(measurements.at(i));
+}

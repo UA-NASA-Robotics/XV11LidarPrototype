@@ -210,13 +210,13 @@ void LidarParser_Parse()
 	{
 		switch (parser.stage)
 		{
-		case ResettingParser: Handler_ResettingParser(); break;
-		case GettingStartByte: Handler_GettingStartByte(); break;
-		case GettingIndexByte: Handler_GettingIndexByte(); break;
-		case GettingPayloadBytes: Handler_GetPayloadBytes(); break;
-		case ValidatingPacket: Handler_ValidatingPacket(); break;
+		case ResettingParser:           Handler_ResettingParser(); break;
+		case GettingStartByte:          Handler_GettingStartByte(); break;
+		case GettingIndexByte:          Handler_GettingIndexByte(); break;
+		case GettingPayloadBytes:       Handler_GetPayloadBytes(); break;
+		case ValidatingPacket:          Handler_ValidatingPacket(); break;
 		case AddingMeasurementToBuffer: Handler_AddingMeasurementToBuffer(); break;
-		case StopParsing: Handler_StopParsing(); break;
+		case StopParsing:               Handler_StopParsing(); break;
 		}
 	}
 }

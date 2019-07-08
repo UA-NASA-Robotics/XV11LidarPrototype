@@ -28,22 +28,22 @@ bool Packet_isValid()
 
 int Packet_getIndex1()
 {
-	return packet_bytes[1] << 2 + 0;
+	return ((packet_bytes[1] - 0xA0) << 2) + 0;
 }
 
 int Packet_getIndex2()
 {
-	return packet_bytes[1] << 2 + 1;
+	return ((packet_bytes[1] - 0xA0) << 2) + 1;
 }
 
 int Packet_getIndex3()
 {
-	return packet_bytes[1] << 2 + 2;
+	return ((packet_bytes[1] - 0xA0) << 2) + 2;
 }
 
 int Packet_getIndex4()
 {
-	return packet_bytes[1] << 2 + 3;
+	return ((packet_bytes[1] - 0xA0) << 2) + 3;
 }
 
 //==============================================================================

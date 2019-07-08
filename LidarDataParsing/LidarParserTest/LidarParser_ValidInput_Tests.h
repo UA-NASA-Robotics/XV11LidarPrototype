@@ -144,3 +144,26 @@ TEST_F(LidarParser_ValidInput, TwoValidPackets_CorrectDistances)
 	EXPECT_EQ(0x0DAD, MockLidarMeasurementBuffer_GetDistance(6));
 	EXPECT_EQ(0x0EAE, MockLidarMeasurementBuffer_GetDistance(7));
 }
+
+//==============================================================================
+// Verify that the correct indices are passed into the measurement buffer
+// when a single valid packet is received.
+//==============================================================================
+TEST_F(LidarParser_ValidInput, OneValidPacket_CorrectIndices)
+{
+	MockLidarInputStream_AddBytes({
+		0xFA,                   // start byte
+		0xA0 + 0,		        // index (note: indices are offset by 0xA0)
+		0xF0, 0x4A,		        // speed bytes (lsb, msb)
+		0, 0, 0xFF, 0xFF,	    // Data 1
+		0, 0, 0xFF, 0xFF,		// Data 2
+		0, 0, 0xFF, 0xFF,		// Data 3
+		0, 0, 0xFF, 0xFF,		// Data 4
+		0xAA, 0xBB		        // checksum bytes (lsb, msb)
+	});
+	LidarParser_Parse();
+	EXPECT_EQ(0, MockLidarMeasurementBuffer_GetIndex(0));
+	EXPECT_EQ(1, MockLidarMeasurementBuffer_GetIndex(1));
+	EXPECT_EQ(2, MockLidarMeasurementBuffer_GetIndex(2));
+	EXPECT_EQ(3, MockLidarMeasurementBuffer_GetIndex(3));
+}
