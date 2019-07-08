@@ -12,36 +12,11 @@ static LidarMeasurementBuffer_i * s_buffer;
 typedef enum
 {
 	ResettingParser,
-
-	// start byte
 	GettingStartByte,
-	ValidateStartByte,
-
-	// index byte
 	GettingIndexByte,
-	ValidatingIndexByte,
-
-	// speed bytes
-	GettingSpeedLSB,
-	StoringSpeedLSB,
-	GettingSpeedMSB,
-	StoringSpeedMSB,
-
-	// data bytes
-	GetDataByte,
-	StoreDataByte,
-
-	// checksum bytes
-	GetChecksumByte_LSB,
-	StoreChecksumByte_LSB,
-	GetChecksumByte_MSB,
-	StoreChecksumByte_MSB,
-	ValidatingChecksum,
-
-	// transfer bytes to measurement buffer
+	GettingPayloadBytes,
+	ValidatingPacket,
 	AddingMeasurementToBuffer,
-
-	// pause parsing (until next call to parse function)
 	StopParsing
 }
 ParsingStage_t;
@@ -57,9 +32,6 @@ static struct
 {
 	// finite state of parsing system
 	ParsingStage_t stage;
-
-	// number of data bytes that have been parsed in current packet
-	int num_data_bytes;
 
 	// flag to indicate whether the FSM loop should continue
 	bool continue_parsing;
@@ -121,17 +93,19 @@ void Handler_ResettingParser()
 	Packet_reset();
 
 	parser.stage = GettingStartByte;
-	parser.num_data_bytes = 0;
 	parser.index = 0;
 }
 
 void Handler_GettingStartByte()
 {
-	parser.stage = allBytesScanned() ? StopParsing : ValidateStartByte;
-}
+	// handle not enough bytes
+	if (allBytesScanned())
+	{
+		parser.stage = StopParsing;
+		return;
+	}
 
-void Handler_ValidateStartByte()
-{
+	// get next byte
 	uint8_t byte = nextByte();
 
 	// handle invalid start byte
@@ -142,17 +116,21 @@ void Handler_ValidateStartByte()
 		return;
 	}
 
+	// add the start byte
 	Packet_add(byte);
 	parser.stage = GettingIndexByte;
 }
 
 void Handler_GettingIndexByte()
 {
-	parser.stage = allBytesScanned() ? StopParsing : ValidatingIndexByte;
-}
+	// handle not enough bytes
+	if (allBytesScanned())
+	{
+		parser.stage = StopParsing;
+		return;
+	}
 
-void Handler_ValidateIndexByte()
-{
+	// get next byte
 	uint8_t byte = nextByte();
 
 	// handle invalid index byte
@@ -164,76 +142,34 @@ void Handler_ValidateIndexByte()
 	}
 
 	Packet_add(byte);
-	parser.stage = GettingSpeedLSB;
+	parser.stage = GettingPayloadBytes;
 }
 
-void Handler_GettingSpeedLSB()
+void Handler_GetPayloadBytes()
 {
-	parser.stage = allBytesScanned() ? StopParsing : StoringSpeedLSB;
+	// 2 speed bytes, 16 data bytes, 2 checksum bytes
+	const int NUM_PAYLOAD_BYTES = 20;
+
+	for (int i = 0; i < NUM_DATA_BYTES_PER_PACKET; ++i)
+	{
+		if (allBytesScanned())
+		{
+			parser.stage = StopParsing;
+			return;
+		}
+		Packet_add(nextByte());
+	}
+	parser.stage = ValidatingPacket;
 }
 
-void Handler_StoringSpeedLSB()
+void Handler_ValidatingPacket()
 {
-	Packet_add(nextByte());
-	parser.stage = GettingSpeedMSB;
-}
-
-void Handler_GettingSpeedMSB()
-{
-	parser.stage = allBytesScanned() ? StopParsing : StoringSpeedMSB;
-}
-
-void Handler_StoringSpeedMSB()
-{
-	Packet_add(nextByte());
-	parser.stage = GetDataByte;
-}
-
-void Handler_GetDataByte()
-{
-	parser.stage = allBytesScanned() ? StopParsing : StoreDataByte;
-}
-
-void Handler_StoreDataByte()
-{
-	Packet_add(nextByte());
-	++parser.num_data_bytes;
-	parser.stage = parser.num_data_bytes < NUM_DATA_BYTES_PER_PACKET ? GetDataByte : GetChecksumByte_LSB;
-}
-
-void Handler_GetChecksumByteLSB()
-{
-	parser.stage = allBytesScanned() ? StopParsing : StoreChecksumByte_LSB;
-}
-
-void Handler_StoreChecksumByteLSB()
-{
-	Packet_add(nextByte());
-	parser.stage = GetChecksumByte_MSB;
-}
-
-void Handler_GetChecksumByteMSB()
-{
-	parser.stage = allBytesScanned() ? StopParsing : StoreChecksumByte_MSB;
-}
-
-void Handler_StoreChecksumByteMSB()
-{
-	Packet_add(nextByte());
-	parser.stage = ValidatingChecksum;
-}
-
-// TODO: Rework this to validate the packet as a whole (not just the checksum)
-void Handler_ValidatingChecksum()
-{
-	// handle invalid packet
 	if (!Packet_isValid())
 	{
 		Buffer_pop(&parser.buffer);
 		parser.stage = ResettingParser;
 		return;
 	}
-
 	parser.stage = AddingMeasurementToBuffer;
 }
 
@@ -263,34 +199,22 @@ void Handler_StopParsing()
 
 void LidarParser_Parse()
 {
-	// transfer as many bytes as possible from UART buffer to parsing buffer
+	// transfer as many bytes as possible from stream to parsing buffer
 	while (!Buffer_full(&parser.buffer) && !s_stream->IsEmpty())
 	{
 		uint8_t byte = s_stream->GetByte();
 		Buffer_push(&parser.buffer, byte);
 	}
 
-	// FSM loop
 	while (parser.continue_parsing)
 	{
 		switch (parser.stage)
 		{
 		case ResettingParser: Handler_ResettingParser(); break;
 		case GettingStartByte: Handler_GettingStartByte(); break;
-		case ValidateStartByte: Handler_ValidateStartByte(); break;
 		case GettingIndexByte: Handler_GettingIndexByte(); break;
-		case ValidatingIndexByte: Handler_ValidateIndexByte(); break;
-		case GettingSpeedLSB: Handler_GettingSpeedLSB(); break;
-		case StoringSpeedLSB: Handler_StoringSpeedLSB(); break;
-		case GettingSpeedMSB: Handler_GettingSpeedMSB(); break;
-		case StoringSpeedMSB: Handler_StoringSpeedMSB(); break;
-		case GetDataByte: Handler_GetDataByte(); break;
-		case StoreDataByte: Handler_StoreDataByte(); break;
-		case GetChecksumByte_LSB: Handler_GetChecksumByteLSB(); break;
-		case StoreChecksumByte_LSB: Handler_StoreChecksumByteLSB(); break;
-		case GetChecksumByte_MSB: Handler_GetChecksumByteMSB(); break;
-		case StoreChecksumByte_MSB: Handler_StoreChecksumByteMSB(); break;
-		case ValidatingChecksum: Handler_ValidatingChecksum(); break;
+		case GettingPayloadBytes: Handler_GetPayloadBytes(); break;
+		case ValidatingPacket: Handler_ValidatingPacket(); break;
 		case AddingMeasurementToBuffer: Handler_AddingMeasurementToBuffer(); break;
 		case StopParsing: Handler_StopParsing(); break;
 		}

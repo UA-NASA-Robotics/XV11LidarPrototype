@@ -28,44 +28,58 @@ bool Packet_isValid()
 
 int Packet_getIndex1()
 {
-	return 0;
+	return packet_bytes[1] << 2 + 0;
 }
 
 int Packet_getIndex2()
 {
-	return 0;
+	return packet_bytes[1] << 2 + 1;
 }
 
 int Packet_getIndex3()
 {
-	return 0;
+	return packet_bytes[1] << 2 + 2;
 }
 
 int Packet_getIndex4()
 {
-	return 0;
+	return packet_bytes[1] << 2 + 3;
 }
 
 //==============================================================================
 // Extracting distances from packet
 //==============================================================================
 
+#define DISTANCE_MASK ~(1 << 14 | 1 << 15)
+
 int Packet_getDistance1()
 {
-	return 0;
+	uint16_t lsb = packet_bytes[4];
+	uint16_t msb = packet_bytes[5];
+	uint16_t distance = (lsb + (msb << 8)) & DISTANCE_MASK;
+	return distance;
 }
 
 int Packet_getDistance2()
 {
-	return 0;
+	uint16_t lsb = packet_bytes[8];
+	uint16_t msb = packet_bytes[9];
+	uint16_t distance = (lsb + (msb << 8)) & DISTANCE_MASK;
+	return distance;
 }
 
 int Packet_getDistance3()
 {
-	return 0;
+	uint16_t lsb = packet_bytes[12];
+	uint16_t msb = packet_bytes[13];
+	uint16_t distance = (lsb + (msb << 8)) & DISTANCE_MASK;
+	return distance;
 }
 
 int Packet_getDistance4()
 {
-	return 0;
+	uint16_t lsb = packet_bytes[16];
+	uint16_t msb = packet_bytes[17];
+	uint16_t distance = (lsb + (msb << 8)) & DISTANCE_MASK;
+	return distance;
 }
