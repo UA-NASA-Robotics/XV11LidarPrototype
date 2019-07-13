@@ -25,6 +25,11 @@ bool isValidIndex(uint8_t byte)
 	return (byte >= LidarPacket_MIN_INDEX) && (byte <= LidarPacket_MAX_INDEX);
 }
 
+uint8_t getIndexByte()
+{
+	return packet_bytes[1];
+}
+
 //==============================================================================
 // public methods
 //==============================================================================
@@ -44,7 +49,7 @@ bool Packet_isValid()
 	bool valid = true;
 
 	// validate the index
-	if (!isValidIndex(packet_bytes[1]))
+	if (!isValidIndex(getIndexByte()))
 		valid = false;
 
 	return valid;
@@ -54,24 +59,26 @@ bool Packet_isValid()
 // Extracting indices from the packet
 //==============================================================================
 
+#define NORMALIZE_INDEX(i, j) ((((i) - LidarPacket_MIN_INDEX) << 2) + (j))
+
 int Packet_getIndex1()
 {
-	return ((packet_bytes[1] - 0xA0) << 2) + 0;
+	return NORMALIZE_INDEX(getIndexByte(), 0);
 }
 
 int Packet_getIndex2()
 {
-	return ((packet_bytes[1] - 0xA0) << 2) + 1;
+	return NORMALIZE_INDEX(getIndexByte(), 1);
 }
 
 int Packet_getIndex3()
 {
-	return ((packet_bytes[1] - 0xA0) << 2) + 2;
+	return NORMALIZE_INDEX(getIndexByte(), 2);
 }
 
 int Packet_getIndex4()
 {
-	return ((packet_bytes[1] - 0xA0) << 2) + 3;
+	return NORMALIZE_INDEX(getIndexByte(), 3);
 }
 
 //==============================================================================
