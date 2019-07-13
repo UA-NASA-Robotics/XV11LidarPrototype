@@ -96,29 +96,40 @@ void Handler_ResettingParser()
 	parser.index = 0;
 }
 
+
+//=============================================================================
+// Handler_GettingStartByte
+//
+// The objective of this function is to remove any/all bytes from the parsing
+// buffer until a valid "start byte" is encountered.  If and when a valid
+// start byte is encountered, it is added to the current packet and the
+// parser is advanced to the next stage.
+//=============================================================================
 void Handler_GettingStartByte()
 {
-	// handle not enough bytes
-	if (allBytesScanned())
+	while (true)
 	{
-		parser.stage = StopParsing;
-		return;
-	}
+		// stop loop if no more bytes available in parsing buffer
+		if (allBytesScanned())
+		{
+			parser.stage = StopParsing;
+			return;
+		}
 
-	// get next byte
-	uint8_t byte = nextByte();
+		// get the next byte
+		uint8_t byte = nextByte();
 
-	// handle invalid start byte
-	if (!isValidStartByte(byte))
-	{
+		// if byte is a valid start byte, add it to the packet and stop loop
+		if (isValidStartByte(byte))
+		{
+			Packet_add(byte);
+			parser.stage = GettingIndexByte;
+			return;
+		}
+
+		// trash byte if not a valid start byte
 		Buffer_pop(&parser.buffer);
-		parser.stage = ResettingParser;
-		return;
 	}
-
-	// add the start byte
-	Packet_add(byte);
-	parser.stage = GettingIndexByte;
 }
 
 void Handler_GettingIndexByte()
@@ -147,8 +158,8 @@ void Handler_GettingIndexByte()
 
 void Handler_GetPayloadBytes()
 {
-	// 2 speed bytes, 16 data bytes, 2 checksum bytes
-	const int NUM_PAYLOAD_BYTES = 20;
+	// (1 index byte) + (2 speed bytes) + (16 data bytes) + (2 checksum bytes) = 21 bytes
+	const int NUM_PAYLOAD_BYTES = 21;
 
 	for (int i = 0; i < NUM_DATA_BYTES_PER_PACKET; ++i)
 	{
