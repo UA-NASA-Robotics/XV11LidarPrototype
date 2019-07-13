@@ -8,7 +8,7 @@ extern "C" {
 #include <stdint.h>
 #include <stddef.h>
 
-#define MAX_BUFFER_SIZE 100
+#define MAX_BUFFER_SIZE 200
 
 typedef struct {
 	uint8_t data[MAX_BUFFER_SIZE];

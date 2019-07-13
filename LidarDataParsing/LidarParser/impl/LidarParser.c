@@ -116,6 +116,7 @@ void Handler_GettingStartByte()
 
 		// trash byte if not a valid start byte
 		Buffer_pop(&parser.buffer);
+		parser.index = 0;
 	}
 }
 
