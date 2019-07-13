@@ -20,10 +20,6 @@ typedef enum
 }
 ParsingStage_t;
 
-// constants
-#define START_BYTE 0xFA
-#define NUM_TOTAL_BYTES_PER_PACKET 22
-
 static struct
 {
 	// finite state of parsing system
@@ -71,7 +67,7 @@ uint8_t nextByte()
 
 bool isValidStartByte(uint8_t byte)
 {
-	return byte == START_BYTE;
+	return byte == LidarPacket_START_BYTE;
 }
 
 //==============================================================================
@@ -125,10 +121,7 @@ void Handler_GettingStartByte()
 
 void Handler_GetPayloadBytes()
 {
-	// (1 index byte) + (2 speed bytes) + (16 data bytes) + (2 checksum bytes) = 21 bytes
-	const int NUM_PAYLOAD_BYTES = 21;
-
-	for (int i = 0; i < NUM_PAYLOAD_BYTES; ++i)
+	for (int i = 1; i < LidarPacket_NUM_BYTES_PER_PACKET; ++i)
 	{
 		if (allBytesScanned())
 		{
@@ -142,14 +135,15 @@ void Handler_GetPayloadBytes()
 
 void Handler_ValidatingPacket()
 {
+	// for invalid packets, remove first byte from buffer and restart parser
 	if (!Packet_isValid())
 	{
-		// remove first byte from parsing buffer
 		Buffer_pop(&parser.buffer);
-
 		parser.stage = ResettingParser;
 		return;
 	}
+
+	// for valid packets, add their payload to the measurement buffer
 	parser.stage = AddingMeasurementToBuffer;
 }
 
@@ -161,7 +155,7 @@ void Handler_AddingMeasurementToBuffer()
 	s_buffer->AddMeasurement(Packet_getIndex4(), Packet_getDistance4());
 
 	// remove bytes from buffer
-	for (int i = 0; i < NUM_TOTAL_BYTES_PER_PACKET; ++i)
+	for (int i = 0; i < LidarPacket_NUM_BYTES_PER_PACKET; ++i)
 		Buffer_pop(&parser.buffer);
 
 	// start over

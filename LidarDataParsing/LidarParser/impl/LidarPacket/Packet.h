@@ -3,6 +3,9 @@
 
 #include <stdbool.h>
 
+#define LidarPacket_START_BYTE 0xFA
+#define LidarPacket_NUM_BYTES_PER_PACKET 22
+
 void Packet_reset();
 void Packet_add(uint8_t);
 bool Packet_isValid();

@@ -19,6 +19,7 @@ void Packet_add(uint8_t byte)
 
 bool Packet_isValid()
 {
+	// TODO: Implement validation.
 	return true;
 }
 
