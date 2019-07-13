@@ -2,10 +2,32 @@
 
 #include <stdint.h>
 
-#define NUM_BYTES_PER_PACKET 22
+//==============================================================================
+// constants
+//==============================================================================
 
-static uint8_t packet_bytes[NUM_BYTES_PER_PACKET];
+#define LidarPacket_MIN_INDEX 0xA0
+#define LidarPacket_MAX_INDEX 0xF9
+
+//==============================================================================
+// packet state
+//==============================================================================
+
+static uint8_t packet_bytes[LidarPacket_NUM_BYTES_PER_PACKET];
 static int index;
+
+//==============================================================================
+// helper methods
+//==============================================================================
+
+bool isValidIndex(uint8_t byte)
+{
+	return (byte >= LidarPacket_MIN_INDEX) && (byte <= LidarPacket_MAX_INDEX);
+}
+
+//==============================================================================
+// public methods
+//==============================================================================
 
 void Packet_reset()
 {
@@ -19,8 +41,13 @@ void Packet_add(uint8_t byte)
 
 bool Packet_isValid()
 {
-	// TODO: Implement validation.
-	return true;
+	bool valid = true;
+
+	// validate the index
+	if (!isValidIndex(packet_bytes[1]))
+		valid = false;
+
+	return valid;
 }
 
 //==============================================================================
