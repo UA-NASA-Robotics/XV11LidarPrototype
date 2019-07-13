@@ -45,12 +45,12 @@ TEST_F(LidarParser_InvalidInput, IndexTooSmall_MeasurementsNotAddedToBuffer)
 	MockLidarInputStream_AddBytes({
 		0xFA,                   // start byte
 		0xA0 - 1,		        // index (note: indices are offset by 0xA0)
-		0xF0, 0x4A,		        // speed bytes (lsb, msb)
-		0xFF, 0xFF, 0xFF, 0xFF,	// Data 1
-		0xFF, 0xFF, 0xFF, 0xFF,	// Data 2
-		0xFF, 0xFF, 0xFF, 0xFF,	// Data 3
-		0xFF, 0xFF, 0xFF, 0xFF,	// Data 4
-		0xAA, 0xBB		        // checksum bytes (lsb, msb)
+		0x27, 0x4b,		        // speed bytes (lsb, msb)
+		0x97, 0x01, 0xbb, 0x01,	// Data 1
+		0x97, 0x01, 0xb4, 0x00,	// Data 2
+		0x98, 0x01, 0x53, 0x00, // Data 3
+		0x99, 0x01, 0x93, 0x00, // Data 4
+		0x4e, 0x28,		        // checksum bytes (lsb, msb)
 	});
 	LidarParser_Parse();
 	EXPECT_EQ(0, message_buffer.GetSize());
@@ -65,12 +65,32 @@ TEST_F(LidarParser_InvalidInput, IndexTooLarge_MeasurementsNotAddedToBuffer)
 	MockLidarInputStream_AddBytes({
 		0xFA,                   // start byte
 		0xA0 + 90,		        // index (note: indices are offset by 0xA0)
-		0xF0, 0x4A,		        // speed bytes (lsb, msb)
-		0xFF, 0xFF, 0xFF, 0xFF,	// Data 1
-		0xFF, 0xFF, 0xFF, 0xFF,	// Data 2
-		0xFF, 0xFF, 0xFF, 0xFF,	// Data 3
-		0xFF, 0xFF, 0xFF, 0xFF,	// Data 4
-		0xAA, 0xBB		        // checksum bytes (lsb, msb)
+		0x27, 0x4b,		        // speed bytes (lsb, msb)
+		0x97, 0x01, 0xbb, 0x01,	// Data 1
+		0x97, 0x01, 0xb4, 0x00,	// Data 2
+		0x98, 0x01, 0x53, 0x00, // Data 3
+		0x99, 0x01, 0x93, 0x00, // Data 4
+		0x4e, 0x28,		        // checksum bytes (lsb, msb)
+	});
+	LidarParser_Parse();
+	EXPECT_EQ(0, message_buffer.GetSize());
+}
+
+//==============================================================================
+// Verifies that if a packet contains an incorrect checksum, measurements
+// are NOT added to the measurement buffer.
+//==============================================================================
+TEST_F(LidarParser_InvalidInput, IncorrectChecksum_MeasurementsNotAddedToBuffer)
+{
+	MockLidarInputStream_AddBytes({
+		0xFA,                   // start byte
+		0xA0 + 0,		        // index (note: indices are offset by 0xA0)
+		0x27, 0x4b,		        // speed bytes (lsb, msb)
+		0x97, 0x01, 0xbb, 0x01,	// Data 1
+		0x97, 0x01, 0xb4, 0x00,	// Data 2
+		0x98, 0x01, 0x53, 0x00, // Data 3
+		0x99, 0x01, 0x93, 0x00, // Data 4
+		0xAA, 0xBB,		        // checksum bytes (lsb, msb)
 	});
 	LidarParser_Parse();
 	EXPECT_EQ(0, message_buffer.GetSize());

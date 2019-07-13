@@ -45,12 +45,12 @@ TEST_F(LidarParser_ValidInput, OneValidPacket)
 	MockLidarInputStream_AddBytes({
 		0xFA,                   // start byte
 		0xA0 + 0,		        // index (note: indices are offset by 0xA0)
-		0xF0, 0x4A,		        // speed bytes (lsb, msb)
-		0xFF, 0xFF, 0xFF, 0xFF,	// Data 1
-		0xFF, 0xFF, 0xFF, 0xFF,	// Data 2
-		0xFF, 0xFF, 0xFF, 0xFF,	// Data 3
-		0xFF, 0xFF, 0xFF, 0xFF,	// Data 4
-		0xAA, 0xBB		        // checksum bytes (lsb, msb)
+		0x27, 0x4b,		        // speed bytes (lsb, msb)
+		0x97, 0x01, 0xbb, 0x01,	// Data 1
+		0x97, 0x01, 0xb4, 0x00,	// Data 2
+		0x98, 0x01, 0x53, 0x00, // Data 3
+		0x99, 0x01, 0x93, 0x00, // Data 4
+		0x4e, 0x28		        // checksum bytes (lsb, msb)
 	});
 	LidarParser_Parse();
 	EXPECT_EQ(4, message_buffer.GetSize());
@@ -65,21 +65,21 @@ TEST_F(LidarParser_ValidInput, TwoValidPackets)
 	MockLidarInputStream_AddBytes({
 		0xFA,                   // start byte
 		0xA0 + 0,		        // index (note: indices are offset by 0xA0)
-		0xF0, 0x4A,		        // speed bytes (lsb, msb)
-		0xFF, 0xFF, 0xFF, 0xFF,	// Data 1
-		0xFF, 0xFF, 0xFF, 0xFF,	// Data 2
-		0xFF, 0xFF, 0xFF, 0xFF,	// Data 3
-		0xFF, 0xFF, 0xFF, 0xFF,	// Data 4
-		0xAA, 0xBB,		        // checksum bytes (lsb, msb)
+		0x27, 0x4b,		        // speed bytes (lsb, msb)
+		0x97, 0x01, 0xbb, 0x01,	// Data 1
+		0x97, 0x01, 0xb4, 0x00,	// Data 2
+		0x98, 0x01, 0x53, 0x00, // Data 3
+		0x99, 0x01, 0x93, 0x00, // Data 4
+		0x4e, 0x28,		        // checksum bytes (lsb, msb)
 
 		0xFA,                   // start byte
 		0xA0 + 1,		        // index (note: indices are offset by 0xA0)
-		0xF0, 0x4A,		        // speed bytes (lsb, msb)
-		0xFF, 0xFF, 0xFF, 0xFF,	// Data 1
-		0xFF, 0xFF, 0xFF, 0xFF,	// Data 2
-		0xFF, 0xFF, 0xFF, 0xFF,	// Data 3
-		0xFF, 0xFF, 0xFF, 0xFF,	// Data 4
-		0xAA, 0xBB,		        // checksum bytes (lsb, msb)
+		0x35, 0x4b,		        // speed bytes (lsb, msb)
+		0x9a, 0x01, 0xb9, 0x01, // Data 1
+		0x9a, 0x01, 0x8b, 0x02, // Data 2
+		0x9a, 0x01, 0x71, 0x02, // Data 3
+		0x9b, 0x01, 0x8b, 0x02, // Data 4
+		0xa6, 0x5f,		        // checksum bytes (lsb, msb)
 	});
 	LidarParser_Parse();
 	EXPECT_EQ(8, message_buffer.GetSize());
@@ -94,18 +94,18 @@ TEST_F(LidarParser_ValidInput, OneValidPacket_CorrectDistances)
 	MockLidarInputStream_AddBytes({
 		0xFA,                   // start byte
 		0xA0 + 0,		        // index (note: indices are offset by 0xA0)
-		0xF0, 0x4A,		        // speed bytes (lsb, msb)
-		5,  0, 0xFF, 0xFF,	    // Data 1
-		10, 0, 0xFF, 0xFF,		// Data 2
-		15, 0, 0xFF, 0xFF,		// Data 3
-		20, 0, 0xFF, 0xFF,		// Data 4
-		0xAA, 0xBB		        // checksum bytes (lsb, msb)
+		0x27, 0x4b,		        // speed bytes (lsb, msb)
+		0x97, 0x01, 0xbb, 0x01,	// Data 1
+		0x97, 0x01, 0xb4, 0x00,	// Data 2
+		0x98, 0x01, 0x53, 0x00, // Data 3
+		0x99, 0x01, 0x93, 0x00, // Data 4
+		0x4e, 0x28,		        // checksum bytes (lsb, msb)
 	});
 	LidarParser_Parse();
-	EXPECT_EQ(5,  MockLidarMeasurementBuffer_GetDistance(0));
-	EXPECT_EQ(10, MockLidarMeasurementBuffer_GetDistance(1));
-	EXPECT_EQ(15, MockLidarMeasurementBuffer_GetDistance(2));
-	EXPECT_EQ(20, MockLidarMeasurementBuffer_GetDistance(3));
+	EXPECT_EQ(0x0197,  MockLidarMeasurementBuffer_GetDistance(0));
+	EXPECT_EQ(0x0197, MockLidarMeasurementBuffer_GetDistance(1));
+	EXPECT_EQ(0x0198, MockLidarMeasurementBuffer_GetDistance(2));
+	EXPECT_EQ(0x0199, MockLidarMeasurementBuffer_GetDistance(3));
 }
 
 //==============================================================================
@@ -117,32 +117,31 @@ TEST_F(LidarParser_ValidInput, TwoValidPackets_CorrectDistances)
 	MockLidarInputStream_AddBytes({
 		0xFA,                   // start byte
 		0xA0 + 0,		        // index (note: indices are offset by 0xA0)
-		0xF0, 0x4A,		        // speed bytes (lsb, msb)
-		0xAA, 0x0A, 0xFF, 0xFF,	// Data 1
-		0xBB, 0x0B, 0xFF, 0xFF,	// Data 2
-		0xCC, 0x0C, 0xFF, 0xFF,	// Data 3
-		0xDD, 0x0D, 0xFF, 0xFF,	// Data 4
-		0xAA, 0xBB,		        // checksum bytes (lsb, msb)
+		0x27, 0x4b,		        // speed bytes (lsb, msb)
+		0x97, 0x01, 0xbb, 0x01,	// Data 1
+		0x97, 0x01, 0xb4, 0x00,	// Data 2
+		0x98, 0x01, 0x53, 0x00, // Data 3
+		0x99, 0x01, 0x93, 0x00, // Data 4
+		0x4e, 0x28,		        // checksum bytes (lsb, msb)
 
 		0xFA,                   // start byte
 		0xA0 + 1,		        // index (note: indices are offset by 0xA0)
-		0xF0, 0x4A,		        // speed bytes (lsb, msb)
-		0xAB, 0x0B, 0xFF, 0xFF,	// Data 1
-		0xAC, 0x0C, 0xFF, 0xFF,	// Data 2
-		0xAD, 0x0D, 0xFF, 0xFF,	// Data 3
-		0xAE, 0x0E, 0xFF, 0xFF,	// Data 4
-		0xAA, 0xBB,		        // checksum bytes (lsb, msb)
-
+		0x35, 0x4b,		        // speed bytes (lsb, msb)
+		0x9a, 0x01, 0xb9, 0x01, // Data 1
+		0x9a, 0x01, 0x8b, 0x02, // Data 2
+		0x9a, 0x01, 0x71, 0x02, // Data 3
+		0x9b, 0x01, 0x8b, 0x02, // Data 4
+		0xa6, 0x5f,		        // checksum bytes (lsb, msb)
 	});
 	LidarParser_Parse();
-	EXPECT_EQ(0x0AAA, MockLidarMeasurementBuffer_GetDistance(0));
-	EXPECT_EQ(0x0BBB, MockLidarMeasurementBuffer_GetDistance(1));
-	EXPECT_EQ(0x0CCC, MockLidarMeasurementBuffer_GetDistance(2));
-	EXPECT_EQ(0x0DDD, MockLidarMeasurementBuffer_GetDistance(3));
-	EXPECT_EQ(0x0BAB, MockLidarMeasurementBuffer_GetDistance(4));
-	EXPECT_EQ(0x0CAC, MockLidarMeasurementBuffer_GetDistance(5));
-	EXPECT_EQ(0x0DAD, MockLidarMeasurementBuffer_GetDistance(6));
-	EXPECT_EQ(0x0EAE, MockLidarMeasurementBuffer_GetDistance(7));
+	EXPECT_EQ(0x0197, MockLidarMeasurementBuffer_GetDistance(0));
+	EXPECT_EQ(0x0197, MockLidarMeasurementBuffer_GetDistance(1));
+	EXPECT_EQ(0x0198, MockLidarMeasurementBuffer_GetDistance(2));
+	EXPECT_EQ(0x0199, MockLidarMeasurementBuffer_GetDistance(3));
+	EXPECT_EQ(0x019a, MockLidarMeasurementBuffer_GetDistance(4));
+	EXPECT_EQ(0x019a, MockLidarMeasurementBuffer_GetDistance(5));
+	EXPECT_EQ(0x019a, MockLidarMeasurementBuffer_GetDistance(6));
+	EXPECT_EQ(0x019b, MockLidarMeasurementBuffer_GetDistance(7));
 }
 
 //==============================================================================
@@ -154,12 +153,12 @@ TEST_F(LidarParser_ValidInput, OneValidPacket_CorrectIndices)
 	MockLidarInputStream_AddBytes({
 		0xFA,                   // start byte
 		0xA0 + 0,		        // index (note: indices are offset by 0xA0)
-		0xF0, 0x4A,		        // speed bytes (lsb, msb)
-		0, 0, 0xFF, 0xFF,	    // Data 1
-		0, 0, 0xFF, 0xFF,		// Data 2
-		0, 0, 0xFF, 0xFF,		// Data 3
-		0, 0, 0xFF, 0xFF,		// Data 4
-		0xAA, 0xBB		        // checksum bytes (lsb, msb)
+		0x27, 0x4b,		        // speed bytes (lsb, msb)
+		0x97, 0x01, 0xbb, 0x01,	// Data 1
+		0x97, 0x01, 0xb4, 0x00,	// Data 2
+		0x98, 0x01, 0x53, 0x00, // Data 3
+		0x99, 0x01, 0x93, 0x00, // Data 4
+		0x4e, 0x28,		        // checksum bytes (lsb, msb)
 	});
 	LidarParser_Parse();
 	EXPECT_EQ(0, MockLidarMeasurementBuffer_GetIndex(0));
@@ -175,19 +174,22 @@ TEST_F(LidarParser_ValidInput, OneValidPacket_CorrectIndices)
 TEST_F(LidarParser_ValidInput, OneValidPacket_AfterTrashBytes)
 {
 	MockLidarInputStream_AddBytes({
-		0xAA, 0xBB, 0xCC, 0xDD, // trash bytes
+		// trash bytes
+		0xAA, 0xBB, 0xCC, 0xDD,
+
+		// valid packet
 		0xFA,                   // start byte
 		0xA0 + 0,		        // index (note: indices are offset by 0xA0)
-		0xF0, 0x4A,		        // speed bytes (lsb, msb)
-		5,  0, 0xFF, 0xFF,	    // Data 1
-		10, 0, 0xFF, 0xFF,		// Data 2
-		15, 0, 0xFF, 0xFF,		// Data 3
-		20, 0, 0xFF, 0xFF,		// Data 4
-		0xAA, 0xBB		        // checksum bytes (lsb, msb)
+		0x27, 0x4b,		        // speed bytes (lsb, msb)
+		0x97, 0x01, 0xbb, 0x01,	// Data 1
+		0x97, 0x01, 0xb4, 0x00,	// Data 2
+		0x98, 0x01, 0x53, 0x00, // Data 3
+		0x99, 0x01, 0x93, 0x00, // Data 4
+		0x4e, 0x28		        // checksum bytes (lsb, msb)
 	});
 	LidarParser_Parse();
-	EXPECT_EQ(5,  MockLidarMeasurementBuffer_GetDistance(0));
-	EXPECT_EQ(10, MockLidarMeasurementBuffer_GetDistance(1));
-	EXPECT_EQ(15, MockLidarMeasurementBuffer_GetDistance(2));
-	EXPECT_EQ(20, MockLidarMeasurementBuffer_GetDistance(3));
+	EXPECT_EQ(0x0197,  MockLidarMeasurementBuffer_GetDistance(0));
+	EXPECT_EQ(0x0197, MockLidarMeasurementBuffer_GetDistance(1));
+	EXPECT_EQ(0x0198, MockLidarMeasurementBuffer_GetDistance(2));
+	EXPECT_EQ(0x0199, MockLidarMeasurementBuffer_GetDistance(3));
 }

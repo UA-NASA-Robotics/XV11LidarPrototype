@@ -30,6 +30,27 @@ uint8_t getIndexByte()
 	return packet_bytes[1];
 }
 
+
+//==============================================================================
+// Calculates checksum based on first 20 bytes (including start byte).
+//==============================================================================
+uint16_t calculateChecksum()
+{
+	// combine the bytes into 16 bit values
+	uint16_t combined[10];
+	for (int i = 0; i < 10; ++i)
+		combined[i] = packet_bytes[2 * i] + ((uint16_t)packet_bytes[2 * i + 1] << 8);
+
+	// compute the checksum
+	uint32_t checksum = 0;
+	for (int i = 0; i < 10; ++i)
+		checksum = (checksum << 1) + combined[i];
+	checksum = (checksum & 0x7FFF) + (checksum >> 15);
+
+	// truncate the result to 15 bits
+	return checksum & 0x7FFFF;
+}
+
 //==============================================================================
 // public methods
 //==============================================================================
@@ -46,13 +67,17 @@ void Packet_add(uint8_t byte)
 
 bool Packet_isValid()
 {
-	bool valid = true;
-
 	// validate the index
 	if (!isValidIndex(getIndexByte()))
-		valid = false;
+		return false;
 
-	return valid;
+	// validate the checksum
+	uint16_t packet_checksum = packet_bytes[20] + ((uint16_t)packet_bytes[21] << 8);
+	uint16_t calculated_checksum = calculateChecksum();
+	if (packet_checksum != calculated_checksum)
+		return false;
+
+	return true;
 }
 
 //==============================================================================
