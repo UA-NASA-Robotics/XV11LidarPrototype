@@ -13,7 +13,6 @@ typedef enum
 {
 	ResettingParser,
 	GettingStartByte,
-	GettingIndexByte,
 	GettingPayloadBytes,
 	ValidatingPacket,
 	AddingMeasurementToBuffer,
@@ -24,9 +23,6 @@ ParsingStage_t;
 // constants
 #define START_BYTE 0xFA
 #define NUM_TOTAL_BYTES_PER_PACKET 22
-#define NUM_DATA_BYTES_PER_PACKET 16
-#define MIN_INDEX 0xA0
-#define MAX_INDEX 0XF9
 
 static struct
 {
@@ -78,11 +74,6 @@ bool isValidStartByte(uint8_t byte)
 	return byte == START_BYTE;
 }
 
-bool isValidIndexByte(uint8_t byte)
-{
-	return byte >= MIN_INDEX && byte <= MAX_INDEX;
-}
-
 //==============================================================================
 // State Machine Handlers
 //==============================================================================
@@ -123,7 +114,7 @@ void Handler_GettingStartByte()
 		if (isValidStartByte(byte))
 		{
 			Packet_add(byte);
-			parser.stage = GettingIndexByte;
+			parser.stage = GettingPayloadBytes;
 			return;
 		}
 
@@ -132,36 +123,12 @@ void Handler_GettingStartByte()
 	}
 }
 
-void Handler_GettingIndexByte()
-{
-	// handle not enough bytes
-	if (allBytesScanned())
-	{
-		parser.stage = StopParsing;
-		return;
-	}
-
-	// get next byte
-	uint8_t byte = nextByte();
-
-	// handle invalid index byte
-	if (!isValidIndexByte(byte))
-	{
-		Buffer_pop(&parser.buffer);
-		parser.stage = ResettingParser;
-		return;
-	}
-
-	Packet_add(byte);
-	parser.stage = GettingPayloadBytes;
-}
-
 void Handler_GetPayloadBytes()
 {
 	// (1 index byte) + (2 speed bytes) + (16 data bytes) + (2 checksum bytes) = 21 bytes
 	const int NUM_PAYLOAD_BYTES = 21;
 
-	for (int i = 0; i < NUM_DATA_BYTES_PER_PACKET; ++i)
+	for (int i = 0; i < NUM_PAYLOAD_BYTES; ++i)
 	{
 		if (allBytesScanned())
 		{
@@ -177,7 +144,9 @@ void Handler_ValidatingPacket()
 {
 	if (!Packet_isValid())
 	{
+		// remove first byte from parsing buffer
 		Buffer_pop(&parser.buffer);
+
 		parser.stage = ResettingParser;
 		return;
 	}
@@ -223,7 +192,6 @@ void LidarParser_Parse()
 		{
 		case ResettingParser:           Handler_ResettingParser(); break;
 		case GettingStartByte:          Handler_GettingStartByte(); break;
-		case GettingIndexByte:          Handler_GettingIndexByte(); break;
 		case GettingPayloadBytes:       Handler_GetPayloadBytes(); break;
 		case ValidatingPacket:          Handler_ValidatingPacket(); break;
 		case AddingMeasurementToBuffer: Handler_AddingMeasurementToBuffer(); break;
